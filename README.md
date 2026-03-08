@@ -1,6 +1,6 @@
 # jetmd
 
-jetmd is a lightweight tabbed Markdown editor for Linux, built in Rust with [GTK 4](https://gtk.org/), [GtkSourceView 5](https://wiki.gnome.org/Projects/GtkSourceView), [WebKitGTK 6](https://webkitgtk.org/), and [pulldown-cmark](https://github.com/raphlinus/pulldown-cmark).
+jetmd is a lightweight tabbed Markdown editor for Linux, built in Rust with [GTK 4](https://gtk.org/), [GtkSourceView 5](https://gnome.pages.gitlab.gnome.org/gtksourceview/gtksourceview5/index.html), [WebKitGTK 6](https://webkitgtk.org/), and [pulldown-cmark](https://github.com/pulldown-cmark/pulldown-cmark).
 
 ![jetmd Screenshot](res/media/sample.png)
 
