@@ -16,6 +16,7 @@ use std::time::Instant;
 
 use gtk4::prelude::*;
 use gtk4::{gio, glib};
+use webkit6::prelude::*;
 
 use crate::autosave::AutosaveManager;
 use crate::file_io;
@@ -1157,6 +1158,71 @@ fn setup_actions(ctx: &AppContext) {
                     }
                 },
             );
+        });
+        ctx.window.add_action(&action);
+    }
+
+    // -- Print (via window.print) ---------------------------------------
+    //
+    // A hidden WebView is created for each invocation, the rendered HTML is
+    // loaded into it, and once the page signals `LoadEvent::Finished` we
+    // inject `window.print()`.  WebKit translates that JS call into the
+    // `WebView::print` signal, passing a `webkit6::PrintOperation` that we
+    // hand to GTK's native print-to-PDF dialog.
+    {
+        let action = gio::SimpleAction::new("print", None);
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |_, _| {
+            let page = match ctx_c.notebook.current_page() {
+                Some(p) => p as usize,
+                None => return,
+            };
+            let tabs_ref = ctx_c.tabs.borrow();
+            let Some(tw) = tabs_ref.get(page) else { return };
+
+            let text = editor::get_text(&tw.source_view);
+            let title = tw
+                .document
+                .borrow()
+                .title()
+                .replace('\u{25cf}', "")
+                .trim()
+                .to_string();
+            let body = markdown::markdown_to_html(&text);
+            let html = markdown::wrap_html_document(&body, &title);
+            drop(tabs_ref);
+
+            // Off-screen WebView used solely for the print pipeline.
+            let print_view = webkit6::WebView::new();
+
+            // `WebView::print` fires when JavaScript calls `window.print()`.
+            // The supplied `PrintOperation` owns WebKit's print settings;
+            // `run_dialog` presents the native GTK print-to-PDF dialog.
+            let win = ctx_c.window.clone();
+            print_view.connect_print(move |_view, print_op: &webkit6::PrintOperation| {
+                print_op.run_dialog(Some(&win));
+                true // mark as handled — suppresses WebKit's own fallback
+            });
+
+            // Trigger `window.print()` once the HTML document is fully loaded.
+            let print_view_c = print_view.clone();
+            print_view.connect_load_changed(move |_view, event| {
+                if event == webkit6::LoadEvent::Finished {
+                    print_view_c.evaluate_javascript(
+                        "window.print();",
+                        None,
+                        None,
+                        None::<&gio::Cancellable>,
+                        |_| {},
+                    );
+                }
+            });
+
+            print_view.load_html(&html, None);
+            ctx_c
+                .state
+                .borrow_mut()
+                .set_status("Opening print dialog\u{2026}");
         });
         ctx.window.add_action(&action);
     }

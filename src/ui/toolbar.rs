@@ -54,11 +54,12 @@ pub fn build_menu_model() -> gio::Menu {
     tab_section.append(Some("Close Tab"), Some("win.close-tab"));
     menu.append_section(None, &tab_section);
 
-    // -- Export As (sub-menu) -------------------------------------------
+    // -- Export As (sub-menu) / Print -----------------------------------
     let export_section = gio::Menu::new();
     let export_submenu = gio::Menu::new();
     export_submenu.append(Some("HTML"), Some("win.export-html"));
     export_section.append_submenu(Some("Export As"), &export_submenu);
+    export_section.append(Some("Print\u{2026}"), Some("win.print"));
     menu.append_section(None, &export_section);
 
     // -- Auto-save [checkbox] / Dark Mode [checkbox] --------------------

@@ -7,6 +7,18 @@ cargo build
 cargo test
 ```
 
+## Code Consistency
+
+To check for formatting issues without applying changes, use the `--check` flag:
+```bash
+cargo fmt -- --check
+```
+
+To format your code automatically, run:
+```bash
+cargo fmt
+```
+
 ## Release build
 
 ```bash
