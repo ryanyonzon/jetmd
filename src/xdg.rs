@@ -84,6 +84,13 @@ impl AppDirectories {
 pub struct AppConfig {
     pub theme: String,
     pub auto_save_enabled: bool,
+    /// Preview theme name (directory name under `themes/`).
+    #[serde(default = "default_preview_theme")]
+    pub preview_theme: String,
+}
+
+fn default_preview_theme() -> String {
+    "default".into()
 }
 
 impl Default for AppConfig {
@@ -91,6 +98,7 @@ impl Default for AppConfig {
         Self {
             theme: "dark".into(),
             auto_save_enabled: false,
+            preview_theme: default_preview_theme(),
         }
     }
 }

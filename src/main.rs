@@ -15,6 +15,7 @@ mod file_io;
 mod markdown;
 mod recent_files;
 mod state;
+mod theme;
 mod ui;
 mod xdg;
 

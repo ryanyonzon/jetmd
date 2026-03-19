@@ -23,6 +23,7 @@ use crate::file_io;
 use crate::markdown;
 use crate::recent_files::RecentFilesManager;
 use crate::state::{AppState, Document, Theme, ViewMode};
+use crate::theme::ThemeManager;
 use crate::ui::{editor, find_replace, preview, toolbar};
 use crate::xdg::{self, AppConfig, AppDirectories};
 
@@ -56,6 +57,9 @@ struct AppContext {
     status_autosave: gtk4::Label,
     /// The `gio::Menu` backing the recent-files dropdown (rebuilt dynamically).
     recent_menu: gio::Menu,
+    /// The `gio::Menu` backing the preview-theme radio group.
+    #[allow(dead_code)]
+    theme_menu: gio::Menu,
     /// Suppresses the `switch-page` handler during programmatic tab removal.
     suppress_switch: Rc<Cell<bool>>,
     /// Allows a programmatic window close to bypass the unsaved-work prompt.
@@ -63,6 +67,8 @@ struct AppContext {
     dirs: Rc<AppDirectories>,
     recent_files: Rc<RecentFilesManager>,
     autosave: Rc<AutosaveManager>,
+    /// Preview theme manager — discovers, caches and serves theme CSS.
+    theme_manager: Rc<RefCell<ThemeManager>>,
 }
 
 #[derive(Clone, Default)]
@@ -98,15 +104,26 @@ pub fn build_window(app: &gtk4::Application, initial_file: Option<String>) {
     let recent_files = Rc::new(RecentFilesManager::new(&dirs));
     let autosave = Rc::new(AutosaveManager::new(&dirs));
 
+    // ---- Theme manager (preview themes) -----------------------------------
+    let theme_manager = Rc::new(RefCell::new(ThemeManager::new(&dirs.themes_dir)));
+
     let mut initial_state = AppState::new();
     initial_state.theme = Theme::from_persisted(&persisted_config.theme);
     initial_state.auto_save_enabled = persisted_config.auto_save_enabled;
+    initial_state.preview_theme = persisted_config.preview_theme.clone();
     initial_state.recent_files = recent_files.load().unwrap_or_default();
 
     let state = Rc::new(RefCell::new(initial_state));
     let tabs: Rc<RefCell<Vec<TabWidgets>>> = Rc::new(RefCell::new(Vec::new()));
 
     let tb = toolbar::create_top_bar_widgets();
+
+    // Populate the preview-theme menu with discovered themes.
+    {
+        let mgr = theme_manager.borrow();
+        let themes = mgr.available_themes();
+        toolbar::rebuild_theme_menu(&tb.theme_menu, &themes);
+    }
 
     // ---- Status bar -------------------------------------------------------
     let status_right = gtk4::Label::new(Some("0 lines · 0 bytes"));
@@ -181,11 +198,13 @@ pub fn build_window(app: &gtk4::Application, initial_file: Option<String>) {
         status_right: status_right.clone(),
         status_autosave: status_autosave.clone(),
         recent_menu: tb.recent_menu.clone(),
+        theme_menu: tb.theme_menu.clone(),
         suppress_switch: Rc::new(Cell::new(false)),
         allow_window_close: Rc::new(Cell::new(false)),
         dirs,
         recent_files,
         autosave,
+        theme_manager,
     };
 
     // ---- Wire open button to open-file action --------------------------------
@@ -406,6 +425,11 @@ pub fn build_window(app: &gtk4::Application, initial_file: Option<String>) {
 fn create_new_tab(ctx: &AppContext, initial: InitialTab) {
     let dark = matches!(ctx.state.borrow().theme, Theme::Dark);
     let view_mode = ctx.state.borrow().view_mode;
+    let theme_css = {
+        let mgr = ctx.theme_manager.borrow();
+        let name = &ctx.state.borrow().preview_theme;
+        mgr.css_for(name).to_string()
+    };
 
     // -- Per-tab widgets ----------------------------------------------------
     let source_view = editor::create_editor();
@@ -413,10 +437,13 @@ fn create_new_tab(ctx: &AppContext, initial: InitialTab) {
 
     // Build the preview WebView — if we already have content, embed it in the
     // initial HTML shell so it is visible without waiting for the page load.
-    let initial_html = initial.content.as_deref().map(markdown::markdown_to_html);
+    let initial_html = initial
+        .content
+        .as_deref()
+        .map(markdown::markdown_to_preview_html);
     let webview = match initial_html.as_deref() {
-        Some(body) => preview::create_preview_with_body(dark, body),
-        None => preview::create_preview(dark),
+        Some(body) => preview::create_preview_with_body(dark, &theme_css, body),
+        None => preview::create_preview(dark, &theme_css),
     };
 
     let sv_buffer = source_view
@@ -537,7 +564,7 @@ fn create_new_tab(ctx: &AppContext, initial: InitialTab) {
                 std::time::Duration::from_millis(200),
                 move || {
                     deb_inner.borrow_mut().take();
-                    let html = markdown::markdown_to_html(&text_owned);
+                    let html = markdown::markdown_to_preview_html(&text_owned);
                     preview::update_content(&webview_cc, &html);
                 },
             ));
@@ -630,6 +657,7 @@ fn persist_app_config(ctx: &AppContext) {
         AppConfig {
             theme: state.theme.persisted_value().into(),
             auto_save_enabled: state.auto_save_enabled,
+            preview_theme: state.preview_theme.clone(),
         }
     };
 
@@ -1388,6 +1416,42 @@ fn setup_actions(ctx: &AppContext) {
                 editor::apply_theme(&tw.source_view, new_dark);
                 preview::set_theme(&tw.webview, new_dark);
                 tw.find_bar.set_dark(new_dark);
+            }
+        });
+        ctx.window.add_action(&action);
+    }
+
+    // -- Preview theme — stateful string action (radio behaviour) ------
+    //
+    // The menu items target `win.preview-theme::<name>`.  GTK renders
+    // them as a radio group because the action has a string state.
+    {
+        let initial_theme = ctx.state.borrow().preview_theme.clone();
+        let action = gio::SimpleAction::new_stateful(
+            "preview-theme",
+            Some(glib::VariantTy::STRING),
+            &initial_theme.to_variant(),
+        );
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |act, param| {
+            let Some(name) = param.and_then(|v| v.get::<String>()) else {
+                return;
+            };
+            act.set_state(&name.to_variant());
+
+            // Look up the theme CSS.
+            let css = {
+                let mgr = ctx_c.theme_manager.borrow();
+                mgr.css_for(&name).to_string()
+            };
+
+            // Persist and update state.
+            ctx_c.state.borrow_mut().preview_theme = name;
+            persist_app_config(&ctx_c);
+
+            // Hot-swap the CSS in every open preview.
+            for tw in ctx_c.tabs.borrow().iter() {
+                preview::apply_theme_css(&tw.webview, &css);
             }
         });
         ctx.window.add_action(&action);

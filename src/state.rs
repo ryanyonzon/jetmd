@@ -191,8 +191,8 @@ pub struct AppState {
     pub auto_save_enabled: bool,
     pub last_auto_save: Instant,
     status_message: Option<(String, Instant)>,
-    /// User-supplied CSS injected into the WebView preview (empty = none).
-    pub custom_css: String,
+    /// Active preview theme name (directory name under `themes/`).
+    pub preview_theme: String,
     /// Most-recently-opened files (newest first, max 10).
     pub recent_files: Vec<PathBuf>,
 }
@@ -205,7 +205,7 @@ impl AppState {
             auto_save_enabled: false,
             last_auto_save: Instant::now(),
             status_message: None,
-            custom_css: String::new(),
+            preview_theme: crate::theme::DEFAULT_THEME_NAME.to_string(),
             recent_files: Vec::new(),
         }
     }

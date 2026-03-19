@@ -24,12 +24,18 @@ pub struct TopBarWidgets {
     pub recent_btn: gtk4::MenuButton,
     /// The underlying `gio::Menu` for recent files (rebuilt dynamically).
     pub recent_menu: gio::Menu,
+    /// The underlying `gio::Menu` for the preview-theme radio group
+    /// (rebuilt dynamically when themes are discovered).
+    pub theme_menu: gio::Menu,
 }
 
 /// Build the flat menu model used inside the hamburger popover.
 ///
-/// Single-level menu with separators; View is the only sub-menu.
-pub fn build_menu_model() -> gio::Menu {
+/// Single-level menu with separators; View and Preview Theme are sub-menus.
+///
+/// `theme_menu` is a shared `gio::Menu` that will be rebuilt dynamically
+/// when themes are discovered at runtime.
+pub fn build_menu_model(theme_menu: &gio::Menu) -> gio::Menu {
     let menu = gio::Menu::new();
 
     // -- New / Open -----------------------------------------------------
@@ -78,6 +84,11 @@ pub fn build_menu_model() -> gio::Menu {
     view_section.append_submenu(Some("View"), &view_submenu);
     menu.append_section(None, &view_section);
 
+    // -- Preview Theme (sub-menu, radio group) --------------------------
+    let theme_section = gio::Menu::new();
+    theme_section.append_submenu(Some("Preview Theme"), theme_menu);
+    menu.append_section(None, &theme_section);
+
     // -- About ----------------------------------------------------------
     let about_section = gio::Menu::new();
     about_section.append(Some("About"), Some("win.about"));
@@ -94,7 +105,8 @@ pub fn build_menu_model() -> gio::Menu {
 /// Create the individual titlebar widgets.
 pub fn create_top_bar_widgets() -> TopBarWidgets {
     // -- Hamburger menu button (☰) --------------------------------------
-    let menu_model = build_menu_model();
+    let theme_menu = gio::Menu::new();
+    let menu_model = build_menu_model(&theme_menu);
     let popover = gtk4::PopoverMenu::from_model(Some(&menu_model));
 
     let hamburger_icon = gtk4::Image::from_icon_name("open-menu-symbolic");
@@ -142,6 +154,29 @@ pub fn create_top_bar_widgets() -> TopBarWidgets {
         open_btn,
         recent_btn,
         recent_menu,
+        theme_menu,
+    }
+}
+
+/// Rebuild the preview-theme menu with radio items for each available theme.
+///
+/// The items target the `win.preview-theme` stateful string action.
+/// GTK shows them as a radio group because they share a target type.
+pub fn rebuild_theme_menu(menu: &gio::Menu, themes: &[&str]) {
+    menu.remove_all();
+    for name in themes {
+        // Capitalise the first letter for a nicer display name.
+        let display = {
+            let mut chars = name.chars();
+            match chars.next() {
+                None => String::new(),
+                Some(first) => {
+                    let upper: String = first.to_uppercase().collect();
+                    format!("{upper}{}", chars.as_str())
+                }
+            }
+        };
+        menu.append(Some(&display), Some(&format!("win.preview-theme::{name}")));
     }
 }
 

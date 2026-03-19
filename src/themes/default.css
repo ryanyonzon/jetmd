@@ -1,0 +1,297 @@
+/*
+ * jetmd — Default Theme
+ *
+ * A clean, minimal, and neutral theme optimised for readability.
+ * Adapts between light and dark backgrounds with balanced contrast.
+ *
+ * CSS class contract: all Markdown elements use stable `.md-*` classes
+ * inside the `.jetmd-preview` root container.  See the project docs
+ * for the full list of supported classes.
+ */
+
+/* ===================================================================
+   CSS Custom Properties
+   =================================================================== */
+
+.jetmd-preview {
+    --bg:           #ffffff;
+    --fg:           #24292f;
+    --fg-muted:     #57606a;
+    --border:       #d0d7de;
+
+    --link:         #0969da;
+    --link-hover:   #0550ae;
+
+    --code-bg:      #f6f8fa;
+    --code-fg:      #24292f;
+    --code-border:  #d0d7de;
+
+    --bq-fg:        #57606a;
+    --bq-border:    #d0d7de;
+    --bq-bg:        transparent;
+
+    --th-bg:        #f6f8fa;
+    --table-border: #d0d7de;
+
+    --hr-color:     #d0d7de;
+
+    --mark-bg:      rgba(255, 210, 0, 0.45);
+    --mark-active:  rgba(255, 165, 0, 0.8);
+    --selection:    rgba(9, 105, 218, 0.15);
+
+    --font-sans:    -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica,
+                    Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+    --font-mono:    'SFMono-Regular', Consolas, 'Liberation Mono', Menlo,
+                    Courier, monospace;
+}
+
+/* Respect the system / app dark-mode preference.                       */
+/* The body gets a `.dark` class when the app is in dark mode.          */
+body.dark .jetmd-preview {
+    --bg:           #1e1e1e;
+    --fg:           #d4d4d4;
+    --fg-muted:     #8b949e;
+    --border:       #444c56;
+
+    --link:         #58a6ff;
+    --link-hover:   #79c0ff;
+
+    --code-bg:      #2d2d2d;
+    --code-fg:      #d4d4d4;
+    --code-border:  #444c56;
+
+    --bq-fg:        #8b949e;
+    --bq-border:    #444c56;
+    --bq-bg:        transparent;
+
+    --th-bg:        #2d2d2d;
+    --table-border: #444c56;
+
+    --hr-color:     #444c56;
+
+    --mark-bg:      rgba(255, 210, 0, 0.35);
+    --mark-active:  rgba(255, 165, 0, 0.7);
+    --selection:    rgba(88, 166, 255, 0.2);
+}
+
+/* ===================================================================
+   Base / Reset
+   =================================================================== */
+
+.jetmd-preview {
+    box-sizing: border-box;
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--fg);
+    background: var(--bg);
+    padding: 16px 24px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    word-wrap: break-word;
+}
+
+.jetmd-preview *, .jetmd-preview *::before, .jetmd-preview *::after {
+    box-sizing: border-box;
+}
+
+.jetmd-preview ::selection {
+    background: var(--selection);
+}
+
+/* ===================================================================
+   Headings
+   =================================================================== */
+
+.jetmd-preview .md-h1,
+.jetmd-preview .md-h2,
+.jetmd-preview .md-h3,
+.jetmd-preview .md-h4,
+.jetmd-preview .md-h5,
+.jetmd-preview .md-h6 {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.jetmd-preview .md-h1 {
+    font-size: 2em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid var(--border);
+}
+
+.jetmd-preview .md-h2 {
+    font-size: 1.5em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid var(--border);
+}
+
+.jetmd-preview .md-h3 { font-size: 1.25em; }
+.jetmd-preview .md-h4 { font-size: 1em; }
+.jetmd-preview .md-h5 { font-size: 0.875em; }
+.jetmd-preview .md-h6 { font-size: 0.85em; color: var(--fg-muted); }
+
+/* ===================================================================
+   Paragraphs & Inline
+   =================================================================== */
+
+.jetmd-preview .md-p {
+    margin: 0.5em 0 1em;
+}
+
+.jetmd-preview .md-a {
+    color: var(--link);
+    text-decoration: none;
+}
+.jetmd-preview .md-a:hover {
+    text-decoration: underline;
+    color: var(--link-hover);
+}
+
+.jetmd-preview .md-strong {
+    font-weight: 600;
+}
+
+.jetmd-preview .md-em {
+    font-style: italic;
+}
+
+/* ===================================================================
+   Code
+   =================================================================== */
+
+.jetmd-preview .md-code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: var(--code-bg);
+    color: var(--code-fg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--code-border);
+}
+
+.jetmd-preview .md-pre {
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    border-radius: 6px;
+    padding: 16px;
+    overflow-x: auto;
+    line-height: 1.45;
+    margin: 1em 0;
+}
+
+.jetmd-preview .md-pre .md-codeblock {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--code-fg);
+    border-radius: 0;
+}
+
+/* ===================================================================
+   Blockquotes
+   =================================================================== */
+
+.jetmd-preview .md-blockquote {
+    border-left: 4px solid var(--bq-border);
+    margin: 0.5em 0;
+    padding: 0.25em 1em;
+    color: var(--bq-fg);
+    background: var(--bq-bg);
+}
+.jetmd-preview .md-blockquote > :first-child { margin-top: 0; }
+.jetmd-preview .md-blockquote > :last-child  { margin-bottom: 0; }
+
+/* ===================================================================
+   Lists
+   =================================================================== */
+
+.jetmd-preview .md-ul,
+.jetmd-preview .md-ol {
+    padding-left: 2em;
+    margin: 0.5em 0;
+}
+
+.jetmd-preview .md-li {
+    margin: 0.25em 0;
+}
+.jetmd-preview .md-li > .md-p {
+    margin: 0.25em 0;
+}
+
+/* Task lists */
+.jetmd-preview .md-ul.contains-task-list,
+.jetmd-preview .md-li.task-list-item {
+    list-style-type: none;
+}
+.jetmd-preview .md-ul.contains-task-list {
+    padding-left: 0;
+}
+.jetmd-preview input[type="checkbox"] {
+    margin-right: 0.5em;
+}
+
+/* ===================================================================
+   Tables
+   =================================================================== */
+
+.jetmd-preview .md-table {
+    border-collapse: collapse;
+    width: auto;
+    margin: 1em 0;
+}
+
+.jetmd-preview .md-th,
+.jetmd-preview .md-td {
+    border: 1px solid var(--table-border);
+    padding: 8px 12px;
+    text-align: left;
+}
+
+.jetmd-preview .md-th {
+    background: var(--th-bg);
+    font-weight: 600;
+}
+
+/* ===================================================================
+   Horizontal Rule
+   =================================================================== */
+
+.jetmd-preview .md-hr {
+    border: none;
+    border-top: 1px solid var(--hr-color);
+    margin: 1.5em 0;
+}
+
+/* ===================================================================
+   Images
+   =================================================================== */
+
+.jetmd-preview .md-img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* ===================================================================
+   Misc
+   =================================================================== */
+
+.jetmd-preview del {
+    color: var(--fg-muted);
+}
+
+/* -- Find-in-preview highlights ---------------------------------------- */
+.jetmd-preview mark.search-hl {
+    background: var(--mark-bg);
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 1px;
+}
+.jetmd-preview mark.search-hl.active {
+    background: var(--mark-active);
+    outline: 2px solid #ff8c00;
+    outline-offset: 1px;
+}

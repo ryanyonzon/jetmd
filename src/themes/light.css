@@ -1,0 +1,288 @@
+/*
+ * jetmd — Light Theme
+ *
+ * A bright, clean theme inspired by GitHub-flavoured Markdown.
+ * Subtle contrast, warm accents, and excellent readability on
+ * white backgrounds.
+ */
+
+/* ===================================================================
+   CSS Custom Properties
+   =================================================================== */
+
+.jetmd-preview {
+    --bg:           #ffffff;
+    --fg:           #1f2328;
+    --fg-muted:     #656d76;
+    --border:       #d1d9e0;
+
+    --link:         #0969da;
+    --link-hover:   #0550ae;
+
+    --code-bg:      #eff1f3;
+    --code-fg:      #1f2328;
+    --code-border:  #d1d9e0;
+
+    --bq-fg:        #656d76;
+    --bq-border:    #d1d9e0;
+    --bq-bg:        #f6f8fa;
+
+    --th-bg:        #f6f8fa;
+    --table-border: #d1d9e0;
+    --table-stripe: #f6f8fa;
+
+    --hr-color:     #d1d9e0;
+
+    --mark-bg:      rgba(255, 210, 0, 0.45);
+    --mark-active:  rgba(255, 165, 0, 0.8);
+    --selection:    rgba(9, 105, 218, 0.15);
+
+    --font-sans:    -apple-system, BlinkMacSystemFont, 'Segoe UI', Noto Sans,
+                    Helvetica, Arial, sans-serif, 'Apple Color Emoji',
+                    'Segoe UI Emoji';
+    --font-mono:    ui-monospace, 'SFMono-Regular', 'SF Mono', Menlo,
+                    Consolas, 'Liberation Mono', monospace;
+}
+
+/* ===================================================================
+   Base
+   =================================================================== */
+
+.jetmd-preview {
+    box-sizing: border-box;
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--fg);
+    background: var(--bg);
+    padding: 20px 28px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    word-wrap: break-word;
+}
+
+.jetmd-preview *, .jetmd-preview *::before, .jetmd-preview *::after {
+    box-sizing: border-box;
+}
+
+.jetmd-preview ::selection {
+    background: var(--selection);
+}
+
+/* ===================================================================
+   Headings
+   =================================================================== */
+
+.jetmd-preview .md-h1,
+.jetmd-preview .md-h2,
+.jetmd-preview .md-h3,
+.jetmd-preview .md-h4,
+.jetmd-preview .md-h5,
+.jetmd-preview .md-h6 {
+    margin-top: 24px;
+    margin-bottom: 16px;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.jetmd-preview .md-h1 {
+    font-size: 2em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid var(--border);
+}
+
+.jetmd-preview .md-h2 {
+    font-size: 1.5em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid var(--border);
+}
+
+.jetmd-preview .md-h3 { font-size: 1.25em; }
+.jetmd-preview .md-h4 { font-size: 1em; }
+.jetmd-preview .md-h5 { font-size: 0.875em; }
+.jetmd-preview .md-h6 { font-size: 0.85em; color: var(--fg-muted); }
+
+/* First heading has reduced top margin */
+.jetmd-preview > :first-child {
+    margin-top: 0 !important;
+}
+
+/* ===================================================================
+   Paragraphs & Inline
+   =================================================================== */
+
+.jetmd-preview .md-p {
+    margin-top: 0;
+    margin-bottom: 16px;
+}
+
+.jetmd-preview .md-a {
+    color: var(--link);
+    text-decoration: none;
+}
+.jetmd-preview .md-a:hover {
+    text-decoration: underline;
+    color: var(--link-hover);
+}
+
+.jetmd-preview .md-strong {
+    font-weight: 600;
+}
+
+.jetmd-preview .md-em {
+    font-style: italic;
+}
+
+/* ===================================================================
+   Code
+   =================================================================== */
+
+.jetmd-preview .md-code {
+    font-family: var(--font-mono);
+    font-size: 85%;
+    background: var(--code-bg);
+    color: var(--code-fg);
+    padding: 0.2em 0.4em;
+    border-radius: 6px;
+    border: none;
+}
+
+.jetmd-preview .md-pre {
+    background: var(--code-bg);
+    border-radius: 6px;
+    padding: 16px;
+    overflow-x: auto;
+    line-height: 1.45;
+    margin: 0 0 16px;
+    font-size: 85%;
+}
+
+.jetmd-preview .md-pre .md-codeblock {
+    font-family: var(--font-mono);
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--code-fg);
+    border-radius: 0;
+    font-size: inherit;
+}
+
+/* ===================================================================
+   Blockquotes
+   =================================================================== */
+
+.jetmd-preview .md-blockquote {
+    border-left: 4px solid var(--bq-border);
+    margin: 0 0 16px;
+    padding: 0 16px;
+    color: var(--bq-fg);
+    background: var(--bq-bg);
+}
+.jetmd-preview .md-blockquote > :first-child { margin-top: 0; }
+.jetmd-preview .md-blockquote > :last-child  { margin-bottom: 0; }
+
+/* ===================================================================
+   Lists
+   =================================================================== */
+
+.jetmd-preview .md-ul,
+.jetmd-preview .md-ol {
+    padding-left: 2em;
+    margin-top: 0;
+    margin-bottom: 16px;
+}
+
+.jetmd-preview .md-li {
+    margin: 0.25em 0;
+}
+.jetmd-preview .md-li > .md-p {
+    margin-top: 16px;
+}
+.jetmd-preview .md-li + .md-li {
+    margin-top: 0.25em;
+}
+
+/* Task lists */
+.jetmd-preview .md-ul.contains-task-list,
+.jetmd-preview .md-li.task-list-item {
+    list-style-type: none;
+}
+.jetmd-preview .md-ul.contains-task-list {
+    padding-left: 0;
+}
+.jetmd-preview input[type="checkbox"] {
+    margin-right: 0.5em;
+    vertical-align: middle;
+}
+
+/* ===================================================================
+   Tables
+   =================================================================== */
+
+.jetmd-preview .md-table {
+    border-collapse: collapse;
+    border-spacing: 0;
+    width: max-content;
+    max-width: 100%;
+    overflow: auto;
+    margin: 0 0 16px;
+}
+
+.jetmd-preview .md-th,
+.jetmd-preview .md-td {
+    border: 1px solid var(--table-border);
+    padding: 6px 13px;
+    text-align: left;
+}
+
+.jetmd-preview .md-th {
+    background: var(--th-bg);
+    font-weight: 600;
+}
+
+.jetmd-preview .md-tr:nth-child(even) .md-td {
+    background: var(--table-stripe);
+}
+
+/* ===================================================================
+   Horizontal Rule
+   =================================================================== */
+
+.jetmd-preview .md-hr {
+    height: 0.25em;
+    padding: 0;
+    margin: 24px 0;
+    background-color: var(--hr-color);
+    border: 0;
+}
+
+/* ===================================================================
+   Images
+   =================================================================== */
+
+.jetmd-preview .md-img {
+    max-width: 100%;
+    height: auto;
+    background-color: var(--bg);
+}
+
+/* ===================================================================
+   Misc
+   =================================================================== */
+
+.jetmd-preview del {
+    color: var(--fg-muted);
+}
+
+/* -- Find-in-preview highlights ---------------------------------------- */
+.jetmd-preview mark.search-hl {
+    background: var(--mark-bg);
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 1px;
+}
+.jetmd-preview mark.search-hl.active {
+    background: var(--mark-active);
+    outline: 2px solid #ff8c00;
+    outline-offset: 1px;
+}
