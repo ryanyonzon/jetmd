@@ -311,7 +311,6 @@ pub fn set_heading(view: &sourceview5::View, level: u32) {
     let buf = view.buffer();
     let cursor = buf.iter_at_mark(&buf.get_insert());
     let line = cursor.line();
-    let col = cursor.line_offset();
 
     let Some(text) = get_line_text(&buf, line) else {
         return;
@@ -338,13 +337,12 @@ pub fn set_heading(view: &sourceview5::View, level: u32) {
     let mark = buf.create_mark(None, &ls, true);
     buf.insert(&mut ls, &new_line);
 
-    // Restore cursor column (clamped to new line length).
+    // Place cursor at the end of the (new) line so the user can keep typing.
     let line_start = buf.iter_at_mark(&mark);
     let new_len = new_line.chars().count() as i32;
-    let target_col = col.min(new_len);
-    let mut restored = line_start;
-    restored.forward_chars(target_col);
-    buf.place_cursor(&restored);
+    let mut end_of_line = line_start;
+    end_of_line.forward_chars(new_len);
+    buf.place_cursor(&end_of_line);
     buf.delete_mark(&mark);
 
     buf.end_user_action();
