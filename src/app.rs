@@ -24,7 +24,7 @@ use crate::markdown;
 use crate::recent_files::RecentFilesManager;
 use crate::state::{AppState, Document, Theme, ViewMode};
 use crate::theme::ThemeManager;
-use crate::ui::{editor, find_replace, preview, toolbar};
+use crate::ui::{editor, find_replace, formatting, preview, toolbar};
 use crate::xdg::{self, AppConfig, AppDirectories};
 
 // ---------------------------------------------------------------------------
@@ -453,6 +453,50 @@ fn create_new_tab(ctx: &AppContext, initial: InitialTab) {
 
     let find_bar = find_replace::FindReplaceBar::new(&sv_buffer, &source_view, &webview);
     find_bar.set_dark(dark);
+
+    // -- Key event controller for Enter / Tab / Shift+Tab -----------------
+    {
+        let sv = source_view.clone();
+        let key_ctrl = gtk4::EventControllerKey::new();
+        // Use Capture phase so we intercept before GtkSourceView's own handlers.
+        key_ctrl.set_propagation_phase(gtk4::PropagationPhase::Capture);
+        key_ctrl.connect_key_pressed(move |_, key, _code, modifiers| {
+            use gtk4::gdk;
+            let shift = modifiers.contains(gdk::ModifierType::SHIFT_MASK);
+            let ctrl = modifiers.contains(gdk::ModifierType::CONTROL_MASK);
+            let alt = modifiers.contains(gdk::ModifierType::ALT_MASK);
+            let no_mods = !shift && !ctrl && !alt;
+
+            match key {
+                // Enter / Return — smart list continuation (no modifiers)
+                gdk::Key::Return | gdk::Key::KP_Enter if no_mods => {
+                    if formatting::handle_enter(&sv) {
+                        glib::Propagation::Stop
+                    } else {
+                        glib::Propagation::Proceed
+                    }
+                }
+                // Tab — list indent / link tab-stop (no modifiers)
+                gdk::Key::Tab if no_mods => {
+                    if formatting::handle_tab(&sv, false) {
+                        glib::Propagation::Stop
+                    } else {
+                        glib::Propagation::Proceed
+                    }
+                }
+                // Shift+Tab — list outdent
+                gdk::Key::ISO_Left_Tab | gdk::Key::Tab if shift && !ctrl && !alt => {
+                    if formatting::handle_tab(&sv, true) {
+                        glib::Propagation::Stop
+                    } else {
+                        glib::Propagation::Proceed
+                    }
+                }
+                _ => glib::Propagation::Proceed,
+            }
+        });
+        source_view.add_controller(key_ctrl);
+    }
 
     let editor_scroll = gtk4::ScrolledWindow::builder()
         .hscrollbar_policy(gtk4::PolicyType::Automatic)
@@ -1494,6 +1538,12 @@ fn setup_actions(ctx: &AppContext) {
         ctx.window.add_action(&action);
     }
 
+    // ====================================================================
+    // Markdown formatting actions
+    // ====================================================================
+
+    setup_formatting_actions(ctx);
+
     // -- Open Recent File -----------------------------------------------
     {
         let action = gio::SimpleAction::new("open-recent", Some(&String::static_variant_type()));
@@ -1544,6 +1594,242 @@ fn setup_actions(ctx: &AppContext) {
 }
 
 // ---------------------------------------------------------------------------
+// Formatting actions
+// ---------------------------------------------------------------------------
+
+/// A helper that looks up the current tab's source view and calls `f` on it.
+fn with_current_source_view(ctx: &AppContext, f: impl Fn(&sourceview5::View)) {
+    let page = match ctx.notebook.current_page() {
+        Some(p) => p as usize,
+        None => return,
+    };
+    let tabs_ref = ctx.tabs.borrow();
+    if let Some(tw) = tabs_ref.get(page) {
+        f(&tw.source_view);
+    }
+}
+
+/// Register all Markdown-formatting and structural-editing GIO actions.
+fn setup_formatting_actions(ctx: &AppContext) {
+    // ---- Inline formatting ------------------------------------------------
+
+    // Bold
+    {
+        let action = gio::SimpleAction::new("format-bold", None);
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |_, _| {
+            with_current_source_view(&ctx_c, |v| formatting::toggle_inline(v, "**"));
+        });
+        ctx.window.add_action(&action);
+    }
+    // Italic
+    {
+        let action = gio::SimpleAction::new("format-italic", None);
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |_, _| {
+            with_current_source_view(&ctx_c, |v| formatting::toggle_inline(v, "*"));
+        });
+        ctx.window.add_action(&action);
+    }
+    // Strikethrough
+    {
+        let action = gio::SimpleAction::new("format-strikethrough", None);
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |_, _| {
+            with_current_source_view(&ctx_c, |v| formatting::toggle_inline(v, "~~"));
+        });
+        ctx.window.add_action(&action);
+    }
+    // Inline code
+    {
+        let action = gio::SimpleAction::new("format-inline-code", None);
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |_, _| {
+            with_current_source_view(&ctx_c, |v| formatting::toggle_inline(v, "`"));
+        });
+        ctx.window.add_action(&action);
+    }
+
+    // ---- Headings ---------------------------------------------------------
+
+    for level in 1u32..=6 {
+        let name = format!("format-heading-{level}");
+        let action = gio::SimpleAction::new(&name, None);
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |_, _| {
+            with_current_source_view(&ctx_c, |v| formatting::set_heading(v, level));
+        });
+        ctx.window.add_action(&action);
+    }
+
+    // ---- Links & Media ----------------------------------------------------
+
+    {
+        let action = gio::SimpleAction::new("format-link", None);
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |_, _| {
+            with_current_source_view(&ctx_c, formatting::insert_link);
+        });
+        ctx.window.add_action(&action);
+    }
+    {
+        let action = gio::SimpleAction::new("format-image", None);
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |_, _| {
+            with_current_source_view(&ctx_c, formatting::insert_image);
+        });
+        ctx.window.add_action(&action);
+    }
+
+    // ---- Lists ------------------------------------------------------------
+
+    {
+        let action = gio::SimpleAction::new("format-bullet-list", None);
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |_, _| {
+            with_current_source_view(&ctx_c, formatting::toggle_bullet_list);
+        });
+        ctx.window.add_action(&action);
+    }
+    {
+        let action = gio::SimpleAction::new("format-numbered-list", None);
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |_, _| {
+            with_current_source_view(&ctx_c, formatting::toggle_numbered_list);
+        });
+        ctx.window.add_action(&action);
+    }
+    {
+        let action = gio::SimpleAction::new("format-task-list", None);
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |_, _| {
+            with_current_source_view(&ctx_c, formatting::toggle_task_list);
+        });
+        ctx.window.add_action(&action);
+    }
+
+    // ---- Block elements ---------------------------------------------------
+
+    {
+        let action = gio::SimpleAction::new("format-code-block", None);
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |_, _| {
+            with_current_source_view(&ctx_c, formatting::insert_code_block);
+        });
+        ctx.window.add_action(&action);
+    }
+    {
+        let action = gio::SimpleAction::new("format-block-quote", None);
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |_, _| {
+            with_current_source_view(&ctx_c, formatting::toggle_block_quote);
+        });
+        ctx.window.add_action(&action);
+    }
+    {
+        let action = gio::SimpleAction::new("format-horizontal-rule", None);
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |_, _| {
+            with_current_source_view(&ctx_c, formatting::insert_horizontal_rule);
+        });
+        ctx.window.add_action(&action);
+    }
+
+    // ---- Indent / Outdent -------------------------------------------------
+
+    {
+        let action = gio::SimpleAction::new("format-indent", None);
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |_, _| {
+            with_current_source_view(&ctx_c, formatting::indent);
+        });
+        ctx.window.add_action(&action);
+    }
+    {
+        let action = gio::SimpleAction::new("format-outdent", None);
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |_, _| {
+            with_current_source_view(&ctx_c, formatting::outdent);
+        });
+        ctx.window.add_action(&action);
+    }
+
+    // ---- Move line up / down ----------------------------------------------
+
+    {
+        let action = gio::SimpleAction::new("move-line-up", None);
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |_, _| {
+            with_current_source_view(&ctx_c, |v| formatting::move_line(v, true));
+        });
+        ctx.window.add_action(&action);
+    }
+    {
+        let action = gio::SimpleAction::new("move-line-down", None);
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |_, _| {
+            with_current_source_view(&ctx_c, |v| formatting::move_line(v, false));
+        });
+        ctx.window.add_action(&action);
+    }
+    {
+        let action = gio::SimpleAction::new("duplicate-line-down", None);
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |_, _| {
+            with_current_source_view(&ctx_c, formatting::duplicate_line);
+        });
+        ctx.window.add_action(&action);
+    }
+
+    // ---- View toggles -----------------------------------------------------
+
+    {
+        let action = gio::SimpleAction::new("cycle-view", None);
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |_, _| {
+            let new_mode = {
+                let st = ctx_c.state.borrow();
+                formatting::cycle_view_mode(st.view_mode)
+            };
+            let mode_str = match new_mode {
+                ViewMode::Editor => "editor",
+                ViewMode::Split => "split",
+                ViewMode::Preview => "preview",
+            };
+            gtk4::prelude::WidgetExt::activate_action(
+                &ctx_c.window,
+                "win.view-mode",
+                Some(&mode_str.to_variant()),
+            )
+            .ok();
+        });
+        ctx.window.add_action(&action);
+    }
+    {
+        let action = gio::SimpleAction::new("toggle-split", None);
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |_, _| {
+            let new_mode = {
+                let st = ctx_c.state.borrow();
+                formatting::toggle_split(st.view_mode)
+            };
+            let mode_str = match new_mode {
+                ViewMode::Editor => "editor",
+                ViewMode::Split => "split",
+                ViewMode::Preview => "preview",
+            };
+            gtk4::prelude::WidgetExt::activate_action(
+                &ctx_c.window,
+                "win.view-mode",
+                Some(&mode_str.to_variant()),
+            )
+            .ok();
+        });
+        ctx.window.add_action(&action);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Keyboard accelerators
 // ---------------------------------------------------------------------------
 
@@ -1565,6 +1851,31 @@ fn setup_accels(app: &gtk4::Application) {
     app.set_accels_for_action("win.dark-mode", &["<Ctrl><Shift>d"]);
     app.set_accels_for_action("win.auto-save", &["<Ctrl><Shift>a"]);
     app.set_accels_for_action("win.quit", &["<Ctrl>q"]);
+
+    // ---- Markdown formatting accelerators --------------------------------
+    app.set_accels_for_action("win.format-bold", &["<Ctrl>b"]);
+    app.set_accels_for_action("win.format-italic", &["<Ctrl>i"]);
+    app.set_accels_for_action("win.format-strikethrough", &["<Ctrl><Shift>x"]);
+    app.set_accels_for_action("win.format-inline-code", &["<Ctrl>grave"]);
+    app.set_accels_for_action("win.format-heading-1", &["<Ctrl><Alt>1"]);
+    app.set_accels_for_action("win.format-heading-2", &["<Ctrl><Alt>2"]);
+    app.set_accels_for_action("win.format-heading-3", &["<Ctrl><Alt>3"]);
+    app.set_accels_for_action("win.format-heading-4", &["<Ctrl><Alt>4"]);
+    app.set_accels_for_action("win.format-heading-5", &["<Ctrl><Alt>5"]);
+    app.set_accels_for_action("win.format-heading-6", &["<Ctrl><Alt>6"]);
+    app.set_accels_for_action("win.format-link", &["<Ctrl>k"]);
+    app.set_accels_for_action("win.format-image", &["<Ctrl><Shift>i"]);
+    app.set_accels_for_action("win.format-bullet-list", &["<Ctrl><Shift>l"]);
+    app.set_accels_for_action("win.format-numbered-list", &["<Ctrl><Shift>7"]);
+    app.set_accels_for_action("win.format-task-list", &["<Ctrl><Shift>t"]);
+    app.set_accels_for_action("win.format-code-block", &["<Ctrl><Shift>c"]);
+    app.set_accels_for_action("win.format-block-quote", &["<Ctrl><Shift>period"]);
+    app.set_accels_for_action("win.format-horizontal-rule", &["<Ctrl><Shift>minus"]);
+    app.set_accels_for_action("win.move-line-up", &["<Alt>Up"]);
+    app.set_accels_for_action("win.move-line-down", &["<Alt>Down"]);
+    app.set_accels_for_action("win.duplicate-line-down", &["<Shift><Alt>Down"]);
+    app.set_accels_for_action("win.cycle-view", &["<Ctrl><Shift>v"]);
+    app.set_accels_for_action("win.toggle-split", &["<Ctrl>backslash"]);
 }
 
 // ---------------------------------------------------------------------------

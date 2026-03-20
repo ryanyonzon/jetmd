@@ -9,5 +9,6 @@
 
 pub mod editor;
 pub mod find_replace;
+pub mod formatting;
 pub mod preview;
 pub mod toolbar;
