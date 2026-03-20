@@ -109,17 +109,12 @@ fn list_prefix_len(line: &str) -> Option<usize> {
     let indent = line.len() - stripped.len();
 
     if stripped.starts_with("- [") && stripped.len() >= 6 {
-        // "- [ ] " or "- [x] "
+        // "- [ ] " (unchecked) or "- [x] " (checked) — both are 6 chars
         let after_bracket = &stripped[3..];
-        if (after_bracket.starts_with("] ") || after_bracket.starts_with("x] "))
-            && after_bracket.len() >= 2
+        if (after_bracket.starts_with(" ] ") || after_bracket.starts_with("x] "))
+            && after_bracket.len() >= 3
         {
-            let task_marker_len = if after_bracket.starts_with("x] ") {
-                3
-            } else {
-                2
-            };
-            return Some(indent + 3 + task_marker_len);
+            return Some(indent + 6);
         }
     }
     if stripped.starts_with("- ") {
