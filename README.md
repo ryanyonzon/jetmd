@@ -8,9 +8,12 @@ jetmd is a lightweight tabbed Markdown editor for Linux, built in Rust with [GTK
 
 - Tabbed Markdown editing with multi-document workflows
 - Live preview with editor, split, and preview-only layouts
+- Keyboard shortcuts for all common Markdown formatting (bold, italic, headings, lists, links, code blocks, and more)
 - Find and replace, recent files, and keyboard shortcuts for everyday editing
+- Print support with native print-to-PDF via the system print dialog
 - HTML export for sharing rendered documents
-- Dark/light themes, optional auto-save, and draft recovery for unsaved work
+- Default and customizable preview themes
+- Dark/light editor themes, optional auto-save, and draft recovery for unsaved work
 
 ## Quick Start
 
