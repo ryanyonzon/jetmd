@@ -47,6 +47,8 @@ use std::fmt::Write;
 
 use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag, TagEnd, html};
 
+use crate::highlight;
+
 // ---------------------------------------------------------------------------
 // Markdown → HTML  (used for preview and export)
 // ---------------------------------------------------------------------------
@@ -83,6 +85,11 @@ pub fn markdown_to_preview_html(markdown: &str) -> String {
     // For <img> we need to collect alt text between Start(Image) and End(Image).
     let mut image_data: Option<(String, String)> = None; // (dest_url, title)
     let mut image_alt = String::new();
+    // Code-block buffering: collect text events while inside a fenced block so
+    // we can apply syntax highlighting before emitting the final HTML.
+    let mut in_code_block = false;
+    let mut code_block_lang: Option<String> = None;
+    let mut code_block_buf = String::new();
 
     for event in parser {
         match event {
@@ -96,19 +103,19 @@ pub fn markdown_to_preview_html(markdown: &str) -> String {
                 Tag::BlockQuote(_) => {
                     out.push_str("<blockquote class=\"md-blockquote\">");
                 }
-                Tag::CodeBlock(kind) => match &kind {
-                    CodeBlockKind::Fenced(info) if !info.is_empty() => {
-                        let lang = info.split_whitespace().next().unwrap_or("");
-                        let _ = write!(
-                            out,
-                            "<pre class=\"md-pre\"><code class=\"md-codeblock language-{}\">",
-                            escape_attr(lang)
-                        );
-                    }
-                    _ => {
-                        out.push_str("<pre class=\"md-pre\"><code class=\"md-codeblock\">");
-                    }
-                },
+                Tag::CodeBlock(kind) => {
+                    in_code_block = true;
+                    code_block_buf.clear();
+                    code_block_lang = match &kind {
+                        CodeBlockKind::Fenced(info) if !info.is_empty() => {
+                            let lang = info.split_whitespace().next().unwrap_or("");
+                            Some(lang.to_string())
+                        }
+                        _ => None,
+                    };
+                    // Opening tags are deferred to End(CodeBlock) so we can
+                    // first accumulate the full source text for highlighting.
+                }
                 Tag::List(Some(start)) => {
                     if start == 1 {
                         out.push_str("<ol class=\"md-ol\">");
@@ -170,7 +177,28 @@ pub fn markdown_to_preview_html(markdown: &str) -> String {
                     let _ = write!(out, "</h{n}>\n");
                 }
                 TagEnd::BlockQuote(_) => out.push_str("</blockquote>\n"),
-                TagEnd::CodeBlock => out.push_str("</code></pre>\n"),
+                TagEnd::CodeBlock => {
+                    in_code_block = false;
+                    match code_block_lang.take() {
+                        Some(lang) => {
+                            let lang_attr = escape_attr(&lang);
+                            out.push_str("<pre class=\"md-pre\">");
+                            let _ =
+                                write!(out, "<code class=\"md-codeblock language-{lang_attr}\">");
+                            match highlight::highlight_code(&code_block_buf, &lang) {
+                                Some(highlighted) => out.push_str(&highlighted),
+                                None => escape_html_to(&code_block_buf, &mut out),
+                            }
+                            out.push_str("</code></pre>\n");
+                        }
+                        None => {
+                            out.push_str("<pre class=\"md-pre\"><code class=\"md-codeblock\">");
+                            escape_html_to(&code_block_buf, &mut out);
+                            out.push_str("</code></pre>\n");
+                        }
+                    }
+                    code_block_buf.clear();
+                }
                 TagEnd::List(is_ordered) => {
                     if is_ordered {
                         out.push_str("</ol>\n");
@@ -226,6 +254,9 @@ pub fn markdown_to_preview_html(markdown: &str) -> String {
                 if image_data.is_some() {
                     // Collecting alt text for the current image.
                     image_alt.push_str(&text);
+                } else if in_code_block {
+                    // Buffer raw code text; highlighting is applied at End(CodeBlock).
+                    code_block_buf.push_str(&text);
                 } else {
                     escape_html_to(&text, &mut out);
                 }
@@ -361,6 +392,7 @@ pub fn build_preview_shell(dark: bool, theme_css: &str) -> String {
 /// WebView hasn't finished its initial load yet.
 pub fn build_preview_shell_with_body(dark: bool, theme_css: &str, body_html: &str) -> String {
     let body_class = if dark { "dark" } else { "light" };
+    let highlight_css = highlight::highlight_css();
     format!(
         r#"<!DOCTYPE html>
 <html>
@@ -368,6 +400,7 @@ pub fn build_preview_shell_with_body(dark: bool, theme_css: &str, body_html: &st
 <meta charset="UTF-8">
 <style id="shell-css">{SHELL_BASE_CSS}</style>
 <style id="theme-css">{theme_css}</style>
+<style id="highlight-css">{highlight_css}</style>
 </head>
 <body class="{body_class}" oncontextmenu="return false;">
 <div class="jetmd-preview" id="content">{body_html}</div>

@@ -12,6 +12,7 @@
 mod app;
 mod autosave;
 mod file_io;
+mod highlight;
 mod markdown;
 mod recent_files;
 mod state;
