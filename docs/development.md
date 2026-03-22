@@ -30,6 +30,8 @@ cargo build --release
 - `state` — view modes, theme helpers, document titles, recent-file ordering, and auto-save conditions
 - `file_io` — read/write round-trips, UTF-8 validation, overwrite behavior, and error reporting
 - `markdown` — HTML rendering and preview-shell generation
+- `highlight` — span generation for known languages, graceful fallback for unknown tokens, CSS scoping for light/dark modes
+- `theme` — built-in theme availability, user-theme discovery and reload, seed-without-overwrite behaviour, and `meta.json` loading
 - `autosave` — draft save, restore, and discard behavior
 - `recent_files` — deduplication and truncation of persisted recent files
 - `xdg` — derived app-directory creation
