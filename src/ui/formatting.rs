@@ -797,10 +797,55 @@ pub fn outdent(view: &sourceview5::View) {
 }
 
 // ---------------------------------------------------------------------------
+// Table helpers  (used by handle_enter)
+// ---------------------------------------------------------------------------
+
+/// Count the data columns if `line` is a Markdown table *data* row.
+/// Returns `None` for separator rows (`|---|`…) and non-table lines.
+fn table_column_count(line: &str) -> Option<usize> {
+    let trimmed = line.trim();
+    if !trimmed.starts_with('|') {
+        return None;
+    }
+    // Separator rows contain only `-`, `:`, `|`, and whitespace.
+    if trimmed
+        .chars()
+        .all(|c| matches!(c, '|' | '-' | ':' | ' ' | '\t'))
+    {
+        return None;
+    }
+    // Count pipes to determine column count (interior cells = pipes − 1).
+    let pipes = trimmed.chars().filter(|&c| c == '|').count();
+    if pipes < 2 {
+        return None;
+    }
+    Some(pipes - 1)
+}
+
+/// Return `true` when every cell in `line` is empty (whitespace only).
+fn is_empty_table_row(line: &str) -> bool {
+    let trimmed = line.trim();
+    if !trimmed.starts_with('|') {
+        return false;
+    }
+    let parts: Vec<&str> = trimmed.split('|').collect();
+    let len = parts.len();
+    if len < 3 {
+        return false;
+    }
+    parts[1..len - 1].iter().all(|cell| cell.trim().is_empty())
+}
+
+/// Build an empty data row for `col_count` columns, e.g. `|  |  |  |`.
+fn empty_table_row(col_count: usize) -> String {
+    format!("|{}", "  |".repeat(col_count))
+}
+
+// ---------------------------------------------------------------------------
 // Smart Enter  (list / quote continuation)
 // ---------------------------------------------------------------------------
 
-/// Handle the Enter key with smart list continuation.
+/// Handle the Enter key with smart list / table continuation.
 /// Returns `true` if the key press was consumed (caller should stop propagation).
 pub fn handle_enter(view: &sourceview5::View) -> bool {
     let buf = view.buffer();
@@ -816,6 +861,38 @@ pub fn handle_enter(view: &sourceview5::View) -> bool {
         return false;
     };
 
+    // --- Table row continuation -------------------------------------------
+    if let Some(col_count) = table_column_count(&line_text) {
+        buf.begin_user_action();
+        if is_empty_table_row(&line_text) {
+            // Empty row — clear its content to exit the table (mirrors list
+            // exit: the line itself stays but the table markup is removed).
+            if let Some((mut ls, mut le)) = line_bounds(&buf, line) {
+                buf.delete(&mut ls, &mut le);
+                buf.place_cursor(&ls);
+            }
+        } else {
+            // Append a new empty row immediately after the current line,
+            // regardless of where within the row the cursor sits.
+            let mut line_end = buf.iter_at_line(line).expect("line exists");
+            if !line_end.ends_line() {
+                line_end.forward_to_line_end();
+            }
+            let new_row = format!("\n{}", empty_table_row(col_count));
+            buf.insert(&mut line_end, &new_row);
+            // Place cursor after the first "| " (column 2) on the new row so
+            // the user can immediately start typing into the first cell.
+            let new_line = line + 1;
+            if let Some(mut pos) = buf.iter_at_line(new_line) {
+                pos.forward_chars(2);
+                buf.place_cursor(&pos);
+            }
+        }
+        buf.end_user_action();
+        return true;
+    }
+
+    // --- List / block-quote continuation -----------------------------------
     // Check if line has a list / quote prefix.
     let Some(next_prefix) = next_list_prefix(&line_text) else {
         return false;
