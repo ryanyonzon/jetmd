@@ -954,6 +954,84 @@ fn handle_link_tab_stop(view: &sourceview5::View) -> bool {
 }
 
 // ---------------------------------------------------------------------------
+// Change Case
+// ---------------------------------------------------------------------------
+
+/// Transform selected text to UPPERCASE.  No-op when nothing is selected.
+pub fn case_upper(view: &sourceview5::View) {
+    apply_case(view, |s| s.to_uppercase());
+}
+
+/// Transform selected text to lowercase.  No-op when nothing is selected.
+pub fn case_lower(view: &sourceview5::View) {
+    apply_case(view, |s| s.to_lowercase());
+}
+
+/// Invert the case of each character in the selection.
+pub fn case_invert(view: &sourceview5::View) {
+    apply_case(view, |s| {
+        s.chars()
+            .map(|c| {
+                if c.is_uppercase() {
+                    c.to_lowercase().to_string()
+                } else {
+                    c.to_uppercase().to_string()
+                }
+            })
+            .collect()
+    });
+}
+
+/// Capitalise the first letter of every whitespace-delimited word in the
+/// selection (Title Case).
+pub fn case_title(view: &sourceview5::View) {
+    apply_case(view, |s| {
+        let mut result = String::with_capacity(s.len());
+        let mut capitalise_next = true;
+        for c in s.chars() {
+            if c.is_whitespace() {
+                capitalise_next = true;
+                result.push(c);
+            } else if capitalise_next {
+                for upper in c.to_uppercase() {
+                    result.push(upper);
+                }
+                capitalise_next = false;
+            } else {
+                result.push(c);
+            }
+        }
+        result
+    });
+}
+
+fn apply_case(view: &sourceview5::View, transform: impl Fn(&str) -> String) {
+    let buf = view.buffer();
+    let (sel_start, sel_end) = match buf.selection_bounds() {
+        Some(bounds) => bounds,
+        None => return,
+    };
+    let selected = buf.text(&sel_start, &sel_end, true).to_string();
+    let transformed = transform(&selected);
+    if transformed == selected {
+        return;
+    }
+    buf.begin_user_action();
+    let mark = buf.create_mark(None, &sel_start, true);
+    let mut s = sel_start;
+    let mut e = sel_end;
+    buf.delete(&mut s, &mut e);
+    let mut ins = buf.iter_at_mark(&mark);
+    buf.insert(&mut ins, &transformed);
+    // Restore selection over the transformed text.
+    let new_start = buf.iter_at_mark(&mark);
+    let new_end = ins;
+    buf.select_range(&new_start, &new_end);
+    buf.delete_mark(&mark);
+    buf.end_user_action();
+}
+
+// ---------------------------------------------------------------------------
 // Table insertion
 // ---------------------------------------------------------------------------
 

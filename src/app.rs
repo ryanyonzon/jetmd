@@ -319,6 +319,9 @@ pub fn build_window(app: &gtk4::Application, initial_file: Option<String>) {
                 ctx_c
                     .status_right
                     .set_text(&format!("{lines} lines · {bytes} bytes"));
+                // Reflect the new tab's selection state in the case actions.
+                let has_sel = tw.source_view.buffer().has_selection();
+                set_case_actions_enabled(&ctx_c.window, has_sel);
             }
         });
     }
@@ -647,6 +650,21 @@ fn create_new_tab(ctx: &AppContext, initial: InitialTab) {
                 let bytes = text.len();
                 status_right_c.set_text(&format!("{lines} lines · {bytes} bytes"));
                 window_c.set_title(Some(&doc.borrow().title()));
+            }
+        });
+    }
+
+    // -- Enable/disable "Change Case" actions when selection changes ---------
+    {
+        let window_c = ctx.window.clone();
+        let notebook_c = ctx.notebook.clone();
+        let page_widget_c = page_widget.clone();
+        sv_buffer.connect_notify_local(Some("has-selection"), move |buf, _| {
+            // Only update when this is the active tab.
+            let page_num = notebook_c.page_num(&page_widget_c);
+            let current = notebook_c.current_page();
+            if page_num.is_some() && page_num == current {
+                set_case_actions_enabled(&window_c, buf.has_selection());
             }
         });
     }
@@ -1819,6 +1837,26 @@ fn setup_formatting_actions(ctx: &AppContext) {
         ctx.window.add_action(&action);
     }
 
+    // ---- Change Case (selection-only; start disabled) ---------------------
+
+    for (name, func) in [
+        (
+            "case-upper",
+            formatting::case_upper as fn(&sourceview5::View),
+        ),
+        ("case-lower", formatting::case_lower),
+        ("case-invert", formatting::case_invert),
+        ("case-title", formatting::case_title),
+    ] {
+        let action = gio::SimpleAction::new(name, None);
+        action.set_enabled(false); // enabled only when text is selected
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |_, _| {
+            with_current_source_view(&ctx_c, func);
+        });
+        ctx.window.add_action(&action);
+    }
+
     // ---- View toggles -----------------------------------------------------
 
     {
@@ -2006,7 +2044,30 @@ fn build_insert_context_menu() -> gio::Menu {
 
     let root = gio::Menu::new();
     root.append_submenu(Some("Insert"), &insert_menu);
+
+    // ---- Change Case (items are auto-disabled when action is disabled) -----
+    let case_menu = gio::Menu::new();
+    case_menu.append(Some("Uppercase"), Some("win.case-upper"));
+    case_menu.append(Some("Lowercase"), Some("win.case-lower"));
+    case_menu.append(Some("Invert Case"), Some("win.case-invert"));
+    case_menu.append(Some("Title Case"), Some("win.case-title"));
+    root.append_submenu(Some("Change Case"), &case_menu);
+
     root
+}
+
+/// Enable or disable the four `case-*` window actions.
+///
+/// Called whenever the active buffer's selection state changes (via
+/// `notify::has-selection`) or when the user switches to a different tab.
+fn set_case_actions_enabled(window: &gtk4::ApplicationWindow, enabled: bool) {
+    for name in ["case-upper", "case-lower", "case-invert", "case-title"] {
+        if let Some(action) = window.lookup_action(name) {
+            if let Ok(sa) = action.downcast::<gio::SimpleAction>() {
+                sa.set_enabled(enabled);
+            }
+        }
+    }
 }
 
 /// Apply global GTK dark/light theme preference.
