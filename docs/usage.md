@@ -111,9 +111,69 @@ With text selected, the selection becomes the link text. Tab jumps the cursor fr
 | Ctrl+Shift+C | Fenced code block (` ``` `) |
 | Ctrl+> (Ctrl+Shift+.) | Block quote (`> `) — toggles on/off |
 | Ctrl+_ (Ctrl+Shift+-) | Horizontal rule (`---`) |
+| Ctrl+T | Insert table |
 
 Code block wraps the selection if text is selected, otherwise inserts an empty block with the cursor inside.
 Block quote and horizontal rule are multi-line aware — the transformation is applied to every selected line.
+
+#### Table insertion (Ctrl+T)
+
+Pressing `Ctrl+T` inserts a three-column Markdown table with a header row, an alignment row, and one data row.
+
+**Insertion point:**
+
+- If the cursor is on a **blank line**, the table is inserted there.
+- If the cursor is on a **line with text**, the buffer is scanned forward for the next blank line and the table is inserted at that position. If no blank line exists below the cursor, the table is appended at the end of the document.
+
+This ensures existing text is never modified by the insertion.
+
+**Inserted template:**
+
+```markdown
+| Header 1 | Header 2 | Header 3 |
+| :--- | :---: | ---: |
+| Cell 1 | Cell 2 | Cell 3 |
+```
+
+Edit the header names, alignment markers, and cell values as needed.
+
+**Column alignment examples:**
+
+Left-aligned columns:
+
+```markdown
+| Name    | Description          | Status  |
+| :------ | :------------------- | :------ |
+| Alpha   | First item           | Active  |
+| Beta    | Second item          | Pending |
+```
+
+Center-aligned columns:
+
+```markdown
+| Day       | High (°C) | Low (°C) |
+| :-------: | :-------: | :------: |
+| Monday    | 22        | 14       |
+| Tuesday   | 19        | 11       |
+```
+
+Right-aligned columns:
+
+```markdown
+| Item      | Qty |  Price |
+| :-------- | --: | -----: |
+| Widget A  |  10 |  $5.00 |
+| Widget B  |   3 | $12.50 |
+```
+
+Mixed alignment (left / center / right):
+
+```markdown
+| Product   | Category  |  Price |
+| :-------- | :-------: | -----: |
+| Laptop    | Computing | $999   |
+| Monitor   | Computing | $349   |
+```
 
 ### Structure and editing
 

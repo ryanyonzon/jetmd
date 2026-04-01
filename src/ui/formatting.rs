@@ -954,6 +954,64 @@ fn handle_link_tab_stop(view: &sourceview5::View) -> bool {
 }
 
 // ---------------------------------------------------------------------------
+// Table insertion
+// ---------------------------------------------------------------------------
+
+/// Insert a Markdown table at the next available blank line.
+///
+/// - If the cursor line is blank, the table is inserted there.
+/// - If the cursor line contains text, the buffer is scanned forward for the
+///   first blank line; if none is found the table is appended at the end of
+///   the document.
+pub fn insert_table(view: &sourceview5::View) {
+    const TABLE: &str = "| Header 1 | Header 2 | Header 3 |\n\
+                         | :--- | :---: | ---: |\n\
+                         | Cell 1 | Cell 2 | Cell 3 |\n";
+
+    let buf = view.buffer();
+    buf.begin_user_action();
+
+    let cursor = buf.iter_at_mark(&buf.get_insert());
+    let cursor_line = cursor.line();
+    let line_count = buf.line_count();
+
+    let current_line_blank = get_line_text(&buf, cursor_line)
+        .map(|t| t.trim().is_empty())
+        .unwrap_or(true);
+
+    if current_line_blank {
+        // Insert at the start of the current blank line.
+        if let Some(mut ins) = buf.iter_at_line(cursor_line) {
+            buf.insert(&mut ins, TABLE);
+            buf.place_cursor(&ins);
+        }
+    } else {
+        // Find the next blank line below the cursor.
+        let blank_line = ((cursor_line + 1)..line_count).find(|&ln| {
+            get_line_text(&buf, ln)
+                .map(|t| t.trim().is_empty())
+                .unwrap_or(false)
+        });
+
+        if let Some(ln) = blank_line {
+            if let Some(mut ins) = buf.iter_at_line(ln) {
+                buf.insert(&mut ins, TABLE);
+                buf.place_cursor(&ins);
+            }
+        } else {
+            // No blank line found — append after end of document.
+            let mut ins = buf.end_iter();
+            let prefix = if ins.starts_line() { "\n" } else { "\n\n" };
+            let full = format!("{prefix}{TABLE}");
+            buf.insert(&mut ins, &full);
+            buf.place_cursor(&ins);
+        }
+    }
+
+    buf.end_user_action();
+}
+
+// ---------------------------------------------------------------------------
 // View Mode helpers  (called from app.rs actions)
 // ---------------------------------------------------------------------------
 

@@ -1708,6 +1708,17 @@ fn setup_formatting_actions(ctx: &AppContext) {
         ctx.window.add_action(&action);
     }
 
+    // ---- Tables -----------------------------------------------------------
+
+    {
+        let action = gio::SimpleAction::new("format-table", None);
+        let ctx_c = ctx.clone();
+        action.connect_activate(move |_, _| {
+            with_current_source_view(&ctx_c, formatting::insert_table);
+        });
+        ctx.window.add_action(&action);
+    }
+
     // ---- Block elements ---------------------------------------------------
 
     {
@@ -1871,6 +1882,7 @@ fn setup_accels(app: &gtk4::Application) {
     app.set_accels_for_action("win.format-code-block", &["<Ctrl><Shift>c"]);
     app.set_accels_for_action("win.format-block-quote", &["<Ctrl>greater"]);
     app.set_accels_for_action("win.format-horizontal-rule", &["<Ctrl>underscore"]);
+    app.set_accels_for_action("win.format-table", &["<Ctrl>t"]);
     app.set_accels_for_action("win.move-line-up", &["<Alt>Up"]);
     app.set_accels_for_action("win.move-line-down", &["<Alt>Down"]);
     app.set_accels_for_action("win.duplicate-line-down", &["<Shift><Alt>Down"]);
