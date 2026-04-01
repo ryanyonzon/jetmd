@@ -128,8 +128,7 @@ pub fn build_window(app: &gtk4::Application, initial_file: Option<String>) {
     // ---- Status bar -------------------------------------------------------
     let status_right = gtk4::Label::new(Some("0 lines · 0 bytes"));
     status_right.add_css_class("dim-label");
-    status_right.set_halign(gtk4::Align::End);
-    status_right.set_hexpand(true);
+    status_right.set_halign(gtk4::Align::Start);
 
     let status_autosave = gtk4::Label::new(Some(if persisted_config.auto_save_enabled {
         "Auto-save: On"
@@ -137,7 +136,7 @@ pub fn build_window(app: &gtk4::Application, initial_file: Option<String>) {
         "Auto-save: Off"
     }));
     status_autosave.add_css_class("dim-label");
-    status_autosave.set_halign(gtk4::Align::End);
+    status_autosave.set_halign(gtk4::Align::Start);
 
     let status_bar = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
     status_bar.set_margin_start(8);
