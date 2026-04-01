@@ -10,6 +10,9 @@
 use gtk4::prelude::*;
 use sourceview5::prelude::*;
 
+/// Point size used for the editor font.
+const EDITOR_FONT_SIZE_PT: u32 = 11;
+
 /// Create and configure a GtkSourceView for Markdown editing.
 pub fn create_editor() -> sourceview5::View {
     let buffer = sourceview5::Buffer::new(None);
@@ -38,7 +41,31 @@ pub fn create_editor() -> sourceview5::View {
     view.set_hexpand(true);
     view.set_vexpand(true);
 
+    // Apply a scoped CSS provider so the font size is set for this widget only,
+    // using the standard GTK4 CSS cascade without touching global styles.
+    apply_editor_font_size(&view, EDITOR_FONT_SIZE_PT);
+
     view
+}
+
+/// Apply a CSS font-size to a single GtkSourceView instance via a scoped
+/// provider.  Using `pt` units keeps the size display-independent.
+///
+/// GTK 4.10+ deprecates `style_context().add_provider()`.  The idiomatic
+/// replacement is to apply a CSS class to the widget and register a
+/// display-level provider that targets only that class.
+fn apply_editor_font_size(view: &sourceview5::View, size_pt: u32) {
+    view.add_css_class("jetmd-editor");
+    let css = format!("textview.jetmd-editor {{ font-size: {size_pt}pt; }}");
+    let provider = gtk4::CssProvider::new();
+    provider.load_from_data(&css);
+    if let Some(display) = gtk4::gdk::Display::default() {
+        gtk4::style_context_add_provider_for_display(
+            &display,
+            &provider,
+            gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
+        );
+    }
 }
 
 /// Apply a dark or light style scheme to the source view.
