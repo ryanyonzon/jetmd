@@ -277,6 +277,32 @@ pub fn build_window(app: &gtk4::Application, initial_file: Option<String>) {
         create_new_tab(&ctx, InitialTab::default());
     }
 
+    // ---- Tab reorder signal — keep ctx.tabs in sync with GTK page order ----
+    {
+        let ctx_c = ctx.clone();
+        notebook.connect_page_reordered(move |nb, child, new_pos| {
+            let old_pos = nb.page_num(child);
+            // nb.page_num returns the *current* (already-moved) position after
+            // GTK has done the reorder, so we need to find by widget identity.
+            // Walk the tabs Vec to locate the entry whose page_widget matches.
+            let found = {
+                let tabs_ref = ctx_c.tabs.borrow();
+                tabs_ref
+                    .iter()
+                    .position(|tw| tw.page_widget.upcast_ref::<gtk4::Widget>() == child)
+            };
+            if let Some(old_idx) = found {
+                let new_idx = new_pos as usize;
+                if old_idx != new_idx {
+                    let mut tabs_mut = ctx_c.tabs.borrow_mut();
+                    let tw = tabs_mut.remove(old_idx);
+                    tabs_mut.insert(new_idx, tw);
+                }
+            }
+            let _ = old_pos; // not needed
+        });
+    }
+
     // ---- Tab switch signal ------------------------------------------------
     {
         let ctx_c = ctx.clone();
@@ -626,6 +652,7 @@ fn create_new_tab(ctx: &AppContext, initial: InitialTab) {
 
     // -- Add page to notebook -----------------------------------------------
     let page_idx = ctx.notebook.append_page(&page_widget, Some(&tab_label_box));
+    ctx.notebook.set_tab_reorderable(&page_widget, true);
 
     // -- Store tab widgets --------------------------------------------------
     let tw = TabWidgets {
