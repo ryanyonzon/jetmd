@@ -459,6 +459,7 @@ fn create_new_tab(ctx: &AppContext, initial: InitialTab) {
     // -- Per-tab widgets ----------------------------------------------------
     let source_view = editor::create_editor();
     editor::apply_theme(&source_view, dark);
+    source_view.set_extra_menu(Some(&build_insert_context_menu()));
 
     // Build the preview WebView — if we already have content, embed it in the
     // initial HTML shell so it is visible without waiting for the page load.
@@ -1919,6 +1920,94 @@ fn setup_accels(app: &gtk4::Application) {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/// Build the "Insert" submenu that appears in the editor right-click context menu.
+///
+/// Every item targets a `win.*` action so it works in the context of whatever
+/// window the editor belongs to.  The `accel` attribute tells GTK to render the
+/// shortcut hint next to the label.
+fn build_insert_context_menu() -> gio::Menu {
+    fn item(label: &str, action: &str, accel: &str) -> gio::MenuItem {
+        let it = gio::MenuItem::new(Some(label), Some(action));
+        it.set_attribute_value("accel", Some(&accel.to_variant()));
+        it
+    }
+
+    let insert_menu = gio::Menu::new();
+
+    // ---- Inline formatting ------------------------------------------------
+    let sec = gio::Menu::new();
+    sec.append_item(&item("Bold", "win.format-bold", "<Ctrl>b"));
+    sec.append_item(&item("Italic", "win.format-italic", "<Ctrl>i"));
+    sec.append_item(&item(
+        "Strikethrough",
+        "win.format-strikethrough",
+        "<Ctrl><Shift>x",
+    ));
+    sec.append_item(&item(
+        "Inline Code",
+        "win.format-inline-code",
+        "<Ctrl>grave",
+    ));
+    insert_menu.append_section(Some("Inline"), &sec);
+
+    // ---- Headings ---------------------------------------------------------
+    let sec = gio::Menu::new();
+    for lvl in 1u32..=6 {
+        let label = format!("Heading {lvl}");
+        let action = format!("win.format-heading-{lvl}");
+        let accel = format!("<Ctrl><Alt>{lvl}");
+        let it = gio::MenuItem::new(Some(&label), Some(&action));
+        it.set_attribute_value("accel", Some(&accel.to_variant()));
+        sec.append_item(&it);
+    }
+    insert_menu.append_section(Some("Headings"), &sec);
+
+    // ---- Links & Media ----------------------------------------------------
+    let sec = gio::Menu::new();
+    sec.append_item(&item("Link", "win.format-link", "<Ctrl>k"));
+    sec.append_item(&item("Image", "win.format-image", "<Ctrl><Shift>i"));
+    insert_menu.append_section(Some("Links & Media"), &sec);
+
+    // ---- Lists ------------------------------------------------------------
+    let sec = gio::Menu::new();
+    sec.append_item(&item(
+        "Bullet List",
+        "win.format-bullet-list",
+        "<Ctrl><Shift>l",
+    ));
+    sec.append_item(&item(
+        "Numbered List",
+        "win.format-numbered-list",
+        "<Ctrl>ampersand",
+    ));
+    sec.append_item(&item("Task List", "win.format-task-list", "<Ctrl><Shift>t"));
+    insert_menu.append_section(Some("Lists"), &sec);
+
+    // ---- Blocks -----------------------------------------------------------
+    let sec = gio::Menu::new();
+    sec.append_item(&item(
+        "Code Block",
+        "win.format-code-block",
+        "<Ctrl><Shift>c",
+    ));
+    sec.append_item(&item(
+        "Block Quote",
+        "win.format-block-quote",
+        "<Ctrl>greater",
+    ));
+    sec.append_item(&item(
+        "Horizontal Rule",
+        "win.format-horizontal-rule",
+        "<Ctrl>underscore",
+    ));
+    sec.append_item(&item("Table", "win.format-table", "<Ctrl>t"));
+    insert_menu.append_section(Some("Blocks"), &sec);
+
+    let root = gio::Menu::new();
+    root.append_submenu(Some("Insert"), &insert_menu);
+    root
+}
 
 /// Apply global GTK dark/light theme preference.
 fn apply_global_theme(dark: bool) {
