@@ -50,15 +50,9 @@ impl From<io::Error> for AutosaveError {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 struct DraftManifest {
     drafts: Vec<DraftEntry>,
-}
-
-impl Default for DraftManifest {
-    fn default() -> Self {
-        Self { drafts: Vec::new() }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -114,7 +108,7 @@ impl AutosaveManager {
         });
         manifest
             .drafts
-            .sort_by(|left, right| right.updated_unix_secs.cmp(&left.updated_unix_secs));
+            .sort_by_key(|entry| std::cmp::Reverse(entry.updated_unix_secs));
         save_json(&self.manifest_path, &manifest)?;
 
         Ok(draft_id)

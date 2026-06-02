@@ -344,10 +344,11 @@ pub fn build_window(app: &gtk4::Application, initial_file: Option<String>) {
                     let text = editor::get_text(&tw.source_view);
                     let doc = tw.document.borrow();
 
-                    if file_auto_save_enabled && doc.modified {
-                        if let Some(path) = doc.file_path.clone() {
-                            save_targets.push((tw.document.clone(), path, text.clone()));
-                        }
+                    if file_auto_save_enabled
+                        && doc.modified
+                        && let Some(path) = doc.file_path.clone()
+                    {
+                        save_targets.push((tw.document.clone(), path, text.clone()));
                     }
 
                     let needs_draft_save = doc.modified
@@ -418,10 +419,10 @@ pub fn build_window(app: &gtk4::Application, initial_file: Option<String>) {
                 for tw in tabs_ref.iter() {
                     tw.tab_label.set_text(&tw.document.borrow().title());
                 }
-                if let Some(page) = ctx_c.notebook.current_page() {
-                    if let Some(tw) = tabs_ref.get(page as usize) {
-                        ctx_c.window.set_title(Some(&tw.document.borrow().title()));
-                    }
+                if let Some(page) = ctx_c.notebook.current_page()
+                    && let Some(tw) = tabs_ref.get(page as usize)
+                {
+                    ctx_c.window.set_title(Some(&tw.document.borrow().title()));
                 }
             }
 
@@ -845,35 +846,35 @@ fn save_tab_by_widget(
         Some(&ctx.window),
         None::<&gio::Cancellable>,
         move |result| {
-            if let Ok(file) = result {
-                if let Some(path) = file.path() {
-                    let text = editor::get_text(&source_view);
-                    match file_io::write_file(&path, &text) {
-                        Ok(()) => {
-                            {
-                                let mut doc = document.borrow_mut();
-                                doc.file_path = Some(path.clone());
-                                doc.mark_saved();
-                            }
-                            cleanup_document_draft(&ctx_c, &document);
-                            tab_label.set_text(&document.borrow().title());
-                            {
-                                let mut st = ctx_c.state.borrow_mut();
-                                st.last_auto_save = Instant::now();
-                                st.set_status("Saved");
-                            }
-                            add_recent_file_and_refresh(&ctx_c, path);
-                            ctx_c.window.set_title(Some(&document.borrow().title()));
-                            if let Some(callback) = post_save.clone() {
-                                callback();
-                            }
+            if let Ok(file) = result
+                && let Some(path) = file.path()
+            {
+                let text = editor::get_text(&source_view);
+                match file_io::write_file(&path, &text) {
+                    Ok(()) => {
+                        {
+                            let mut doc = document.borrow_mut();
+                            doc.file_path = Some(path.clone());
+                            doc.mark_saved();
                         }
-                        Err(error) => {
-                            ctx_c
-                                .state
-                                .borrow_mut()
-                                .set_status(format!("Save failed: {error}"));
+                        cleanup_document_draft(&ctx_c, &document);
+                        tab_label.set_text(&document.borrow().title());
+                        {
+                            let mut st = ctx_c.state.borrow_mut();
+                            st.last_auto_save = Instant::now();
+                            st.set_status("Saved");
                         }
+                        add_recent_file_and_refresh(&ctx_c, path);
+                        ctx_c.window.set_title(Some(&document.borrow().title()));
+                        if let Some(callback) = post_save.clone() {
+                            callback();
+                        }
+                    }
+                    Err(error) => {
+                        ctx_c
+                            .state
+                            .borrow_mut()
+                            .set_status(format!("Save failed: {error}"));
                     }
                 }
             }
@@ -1119,27 +1120,27 @@ fn setup_actions(ctx: &AppContext) {
                 Some(&ctx_c.window),
                 None::<&gio::Cancellable>,
                 move |result| {
-                    if let Ok(file) = result {
-                        if let Some(path) = file.path() {
-                            match file_io::read_file(&path) {
-                                Ok(content) => {
-                                    create_new_tab(
-                                        &ctx_cc,
-                                        InitialTab {
-                                            content: Some(content),
-                                            file_path: Some(path.clone()),
-                                            draft_id: None,
-                                            modified: false,
-                                        },
-                                    );
-                                    add_recent_file_and_refresh(&ctx_cc, path);
-                                }
-                                Err(e) => {
-                                    ctx_cc
-                                        .state
-                                        .borrow_mut()
-                                        .set_status(format!("Open failed: {e}"));
-                                }
+                    if let Ok(file) = result
+                        && let Some(path) = file.path()
+                    {
+                        match file_io::read_file(&path) {
+                            Ok(content) => {
+                                create_new_tab(
+                                    &ctx_cc,
+                                    InitialTab {
+                                        content: Some(content),
+                                        file_path: Some(path.clone()),
+                                        draft_id: None,
+                                        modified: false,
+                                    },
+                                );
+                                add_recent_file_and_refresh(&ctx_cc, path);
+                            }
+                            Err(e) => {
+                                ctx_cc
+                                    .state
+                                    .borrow_mut()
+                                    .set_status(format!("Open failed: {e}"));
                             }
                         }
                     }
@@ -1191,11 +1192,11 @@ fn setup_actions(ctx: &AppContext) {
         let notebook_c = ctx.notebook.clone();
         action.connect_activate(move |_, _| {
             let n = notebook_c.n_pages();
-            if n > 1 {
-                if let Some(current) = notebook_c.current_page() {
-                    let next = (current + 1) % n;
-                    notebook_c.set_current_page(Some(next));
-                }
+            if n > 1
+                && let Some(current) = notebook_c.current_page()
+            {
+                let next = (current + 1) % n;
+                notebook_c.set_current_page(Some(next));
             }
         });
         ctx.window.add_action(&action);
@@ -1207,11 +1208,11 @@ fn setup_actions(ctx: &AppContext) {
         let notebook_c = ctx.notebook.clone();
         action.connect_activate(move |_, _| {
             let n = notebook_c.n_pages();
-            if n > 1 {
-                if let Some(current) = notebook_c.current_page() {
-                    let prev = if current == 0 { n - 1 } else { current - 1 };
-                    notebook_c.set_current_page(Some(prev));
-                }
+            if n > 1
+                && let Some(current) = notebook_c.current_page()
+            {
+                let prev = if current == 0 { n - 1 } else { current - 1 };
+                notebook_c.set_current_page(Some(prev));
             }
         });
         ctx.window.add_action(&action);
@@ -1258,18 +1259,18 @@ fn setup_actions(ctx: &AppContext) {
                 Some(&ctx_c.window),
                 None::<&gio::Cancellable>,
                 move |result| {
-                    if let Ok(file) = result {
-                        if let Some(path) = file.path() {
-                            match file_io::write_file(&path, &html) {
-                                Ok(()) => {
-                                    ctx_cc.state.borrow_mut().set_status("Exported HTML");
-                                }
-                                Err(e) => {
-                                    ctx_cc
-                                        .state
-                                        .borrow_mut()
-                                        .set_status(format!("Export failed: {e}"));
-                                }
+                    if let Ok(file) = result
+                        && let Some(path) = file.path()
+                    {
+                        match file_io::write_file(&path, &html) {
+                            Ok(()) => {
+                                ctx_cc.state.borrow_mut().set_status("Exported HTML");
+                            }
+                            Err(e) => {
+                                ctx_cc
+                                    .state
+                                    .borrow_mut()
+                                    .set_status(format!("Export failed: {e}"));
                             }
                         }
                     }
@@ -2062,10 +2063,10 @@ fn build_insert_context_menu() -> gio::Menu {
 /// `notify::has-selection`) or when the user switches to a different tab.
 fn set_case_actions_enabled(window: &gtk4::ApplicationWindow, enabled: bool) {
     for name in ["case-upper", "case-lower", "case-invert", "case-title"] {
-        if let Some(action) = window.lookup_action(name) {
-            if let Ok(sa) = action.downcast::<gio::SimpleAction>() {
-                sa.set_enabled(enabled);
-            }
+        if let Some(action) = window.lookup_action(name)
+            && let Ok(sa) = action.downcast::<gio::SimpleAction>()
+        {
+            sa.set_enabled(enabled);
         }
     }
 }

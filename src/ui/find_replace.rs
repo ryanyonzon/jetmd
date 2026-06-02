@@ -369,7 +369,7 @@ impl FindReplaceBar {
                 let replacement = repl_entry.text();
                 let (sel_start, sel_end) = buf.selection_bounds().unwrap_or_else(|| {
                     let cursor = buf.iter_at_mark(&buf.get_insert());
-                    (cursor.clone(), cursor)
+                    (cursor, cursor)
                 });
                 let mut s = sel_start;
                 let mut e = sel_end;

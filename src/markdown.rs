@@ -174,7 +174,7 @@ pub fn markdown_to_preview_html(markdown: &str) -> String {
                 TagEnd::Paragraph => out.push_str("</p>\n"),
                 TagEnd::Heading(level) => {
                     let n = level as usize;
-                    let _ = write!(out, "</h{n}>\n");
+                    let _ = writeln!(out, "</h{n}>");
                 }
                 TagEnd::BlockQuote(_) => out.push_str("</blockquote>\n"),
                 TagEnd::CodeBlock => {
