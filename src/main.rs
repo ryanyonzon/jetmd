@@ -24,14 +24,25 @@ use gtk4::glib;
 use gtk4::prelude::*;
 
 fn main() -> glib::ExitCode {
+    const APP_ID: &str = "io.github.ryanyonzon.jetmd";
+
+    glib::set_application_name("jetmd");
+
     let application = gtk4::Application::builder()
-        .application_id("io.github.ryanyonzon.jetmd")
-        .flags(gtk4::gio::ApplicationFlags::NON_UNIQUE)
+        .application_id(APP_ID)
+        .flags(gtk4::gio::ApplicationFlags::HANDLES_OPEN)
         .build();
 
     application.connect_activate(|app| {
-        let initial_file = std::env::args().nth(1);
-        app::build_window(app, initial_file);
+        app::build_window(app, Vec::new());
+    });
+
+    application.connect_open(|app, files, _hint| {
+        let initial_files = files
+            .iter()
+            .filter_map(|file| file.path())
+            .collect::<Vec<_>>();
+        app::build_window(app, initial_files);
     });
 
     application.run()

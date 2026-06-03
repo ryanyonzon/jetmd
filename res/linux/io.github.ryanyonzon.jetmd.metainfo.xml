@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.ryanyonzon.jetmd</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT OR Apache-2.0</project_license>
+  <name>jetmd</name>
+  <summary>A lightweight Markdown editor with live preview</summary>
+  <description>
+    <p>jetmd is a lightweight Markdown editor built with GTK4, GtkSourceView 5, and WebKitGTK 6.</p>
+    <p>It provides tabbed editing, live preview, find and replace, HTML export, and draft recovery for unsaved documents.</p>
+  </description>
+  <launchable type="desktop-id">io.github.ryanyonzon.jetmd.desktop</launchable>
+  <categories>
+    <category>Office</category>
+    <category>Utility</category>
+    <category>TextEditor</category>
+  </categories>
+  <keywords>
+    <keyword>markdown</keyword>
+    <keyword>editor</keyword>
+    <keyword>preview</keyword>
+    <keyword>gtk</keyword>
+  </keywords>
+  <url type="homepage">https://github.com/ryanyonzon/jetmd</url>
+  <url type="bugtracker">https://github.com/ryanyonzon/jetmd/issues</url>
+  <developer id="io.github.ryanyonzon">
+    <name>Ryan Yonzon</name>
+  </developer>
+  <provides>
+    <binary>jetmd</binary>
+  </provides>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="0.1.5" date="2026-06-03" />
+  </releases>
+</component>

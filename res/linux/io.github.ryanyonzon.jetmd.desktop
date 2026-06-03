@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=jetmd
+GenericName=Markdown Editor
+Comment=A lightweight Markdown editor with live preview
+Exec=jetmd %F
+Icon=io.github.ryanyonzon.jetmd
+Terminal=false
+StartupNotify=true
+StartupWMClass=io.github.ryanyonzon.jetmd
+Categories=Office;Utility;TextEditor;GTK;
+MimeType=text/markdown;text/x-markdown;
+Keywords=Markdown;Editor;Preview;Text;

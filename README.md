@@ -36,6 +36,23 @@ cargo run --release
 cargo run --release -- path/to/file.md
 ```
 
+## Bundling
+
+- Install `cargo-bundle`:
+
+```bash
+cargo install cargo-bundle
+```
+
+- Build a release bundle for the current platform:
+
+```bash
+cargo bundle --release
+```
+
+- Linux bundles include desktop metadata for Markdown files via the application id `io.github.ryanyonzon.jetmd`.
+
+
 ## Documentation
 
 - [Installation](docs/installation.md) — system dependencies, build steps, and run instructions

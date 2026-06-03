@@ -5,6 +5,8 @@ edition = "2024"
 description = "A lightweight Markdown editor"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
+homepage = "https://github.com/ryanyonzon/jetmd"
+repository = "https://github.com/ryanyonzon/jetmd"
 keywords = ["markdown", "editor", "gui", "gtk4"]
 categories = ["text-editors"]
 
@@ -24,8 +26,7 @@ tempfile = "3.26.0"
 [package.metadata.bundle]
 name = "jetmd"
 identifier = "io.github.ryanyonzon.jetmd"
-icon = ["res/icons/1024x1024.png"]
-version = "0.1.0"
+icon = ["res/icons/*.png"]
 copyright = "Copyright (c) 2026 Ryan Yonzon"
 category = "public.app-category.productivity"
 short_description = "A lightweight Markdown editor"
@@ -33,3 +34,11 @@ long_description = """
 jetmd is a lightweight Markdown editor with live preview built using GTK4.
 It supports syntax highlighting, find and replace, and real-time rendered previews.
 """
+linux_mime_types = ["text/markdown", "text/x-markdown"]
+linux_exec_args = "%F"
+linux_use_terminal = false
+deb_depends = [
+	"libgtk-4-1",
+	"libgtksourceview-5-0",
+	"libwebkitgtk-6.0-4",
+]

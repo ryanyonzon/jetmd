@@ -10,6 +10,7 @@
 //! Uses a `gtk4::Notebook` to provide multi-tab / multi-document editing.
 
 use std::cell::{Cell, RefCell};
+use std::collections::HashSet;
 use std::rc::Rc;
 use std::sync::Once;
 use std::time::Instant;
@@ -95,7 +96,7 @@ static NOTEBOOK_CSS_INIT: Once = Once::new();
 const DRAFT_AUTO_SAVE_INTERVAL_SECS: u64 = 30;
 
 /// Build the application window and connect all signals/actions.
-pub fn build_window(app: &gtk4::Application, initial_file: Option<String>) {
+pub fn build_window(app: &gtk4::Application, initial_files: Vec<std::path::PathBuf>) {
     ensure_notebook_css();
 
     let dirs =
@@ -242,33 +243,35 @@ pub fn build_window(app: &gtk4::Application, initial_file: Option<String>) {
     }
 
     let mut opened_any = ctx.notebook.n_pages() > 0;
-    if let Some(path_str) = initial_file {
-        let path = std::path::PathBuf::from(&path_str);
-        let already_open = {
-            let tabs_ref = ctx.tabs.borrow();
-            tabs_ref
-                .iter()
-                .any(|tw| tw.document.borrow().file_path.as_ref() == Some(&path))
-        };
+    let mut opened_paths: HashSet<std::path::PathBuf> = {
+        let tabs_ref = ctx.tabs.borrow();
+        tabs_ref
+            .iter()
+            .filter_map(|tw| tw.document.borrow().file_path.clone())
+            .collect()
+    };
 
-        if !already_open {
-            match file_io::read_file(&path) {
-                Ok(content) => {
-                    create_new_tab(
-                        &ctx,
-                        InitialTab {
-                            content: Some(content),
-                            file_path: Some(path.clone()),
-                            draft_id: None,
-                            modified: false,
-                        },
-                    );
-                    add_recent_file_and_refresh(&ctx, path);
-                    opened_any = true;
-                }
-                Err(e) => {
-                    eprintln!("Failed to open: {e}");
-                }
+    for path in initial_files {
+        if !opened_paths.insert(path.clone()) {
+            continue;
+        }
+
+        match file_io::read_file(&path) {
+            Ok(content) => {
+                create_new_tab(
+                    &ctx,
+                    InitialTab {
+                        content: Some(content),
+                        file_path: Some(path.clone()),
+                        draft_id: None,
+                        modified: false,
+                    },
+                );
+                add_recent_file_and_refresh(&ctx, path);
+                opened_any = true;
+            }
+            Err(e) => {
+                eprintln!("Failed to open {}: {e}", path.display());
             }
         }
     }
